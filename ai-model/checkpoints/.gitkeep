@@ -1,0 +1,3 @@
+# Place your best_model.pth file in this directory.
+# This file exists to ensure the checkpoints/ directory is tracked by git.
+# The actual .pth file is excluded via .gitignore (use git-lfs or cloud storage).

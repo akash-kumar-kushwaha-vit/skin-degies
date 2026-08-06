@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+
+# Model checkpoints (large binary files — use git-lfs or cloud storage)
+checkpoints/*.pth
+checkpoints/*.pt
+checkpoints/*.ckpt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary uploads
+uploads/
+tmp/

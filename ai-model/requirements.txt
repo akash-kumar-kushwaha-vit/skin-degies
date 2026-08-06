@@ -1,0 +1,29 @@
+# SkinDegies AI Service — Python Dependencies
+# =============================================
+# Install with: pip install -r requirements.txt
+#
+# Pinned for reproducibility. Update minor versions as needed,
+# but keep major versions fixed for PyTorch/torchvision compatibility.
+
+# ── Web Framework ─────────────────────────────────────────────────────────
+fastapi==0.115.5
+uvicorn[standard]==0.32.1          # Includes httptools + websockets
+python-multipart==0.0.20           # Required for UploadFile / form data
+
+# ── Settings / Validation ─────────────────────────────────────────────────
+pydantic==2.10.3
+pydantic-settings==2.6.1           # BaseSettings with .env support
+
+# ── AI / ML ───────────────────────────────────────────────────────────────
+# NOTE: Install CPU-only PyTorch for Railway to keep image size small.
+# For GPU inference, replace with the appropriate CUDA wheel.
+torch==2.5.1
+torchvision==0.20.1
+
+# ── Image Processing ──────────────────────────────────────────────────────
+Pillow==11.0.0
+opencv-python-headless==4.10.0.84  # Headless build — no GUI dependencies
+albumentations==1.4.21             # Available for future TTA / augmentation
+
+# ── Logging & Utilities ───────────────────────────────────────────────────
+python-json-logger==2.0.7         # Optional structured JSON logging
