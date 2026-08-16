@@ -98,5 +98,5 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         case_sensitive = False
 
-
 settings = Settings()
+TOP_K = settings.TOP_K

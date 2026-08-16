@@ -62,8 +62,8 @@ router.post(
     body("password")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters")
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage("Password must contain uppercase, lowercase, and a number"),
+      .matches(/^(?=.*[A-Za-z])(?=.*\d)/)
+      .withMessage("Password must contain at least one letter and one number"),
   ],
   validate,
   register
@@ -120,8 +120,8 @@ router.post(
     body("password")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters")
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage("Password must contain uppercase, lowercase, and a number"),
+      .matches(/^(?=.*[A-Za-z])(?=.*\d)/)
+      .withMessage("Password must contain at least one letter and one number"),
   ],
   validate,
   resetPassword

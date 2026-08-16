@@ -6,6 +6,7 @@
  */
 
 const FormData = require("form-data");
+const fetch = require("node-fetch");
 const logger = require("../utils/logger");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";

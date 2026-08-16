@@ -28,46 +28,46 @@ export default function AdminPredictions() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl md:text-3xl font-bold text-white">System Prediction Logs</h1>
-        <p className="text-slate-400 text-sm">System-wide AI skin disease model inference records</p>
+        <h1 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">System Prediction Logs</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">System-wide AI skin disease model inference records</p>
       </div>
 
-      <div className="card glass">
+      <div className="card-base p-0 rounded-3xl overflow-hidden shadow-premium">
         {loading ? (
-          <div className="space-y-3 py-4">
-            <div className="h-12 skeleton" />
-            <div className="h-12 skeleton" />
-            <div className="h-12 skeleton" />
+          <div className="p-6 space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-12 skeleton rounded-xl" />
+            ))}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-800/40 text-xs text-slate-400 uppercase tracking-wider border-b border-white/5">
+            <table className="w-full text-left text-sm table-base">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3">Timestamp</th>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Primary Diagnosis</th>
-                  <th className="px-4 py-3">Confidence</th>
-                  <th className="px-4 py-3">Processing Latency</th>
+                  <th>Timestamp</th>
+                  <th>User</th>
+                  <th>Primary Diagnosis</th>
+                  <th>Confidence</th>
+                  <th>Processing Latency</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody>
                 {predictions.map((p) => (
-                  <tr key={p._id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-4 py-3 text-xs text-slate-400">
+                  <tr key={p._id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="text-xs text-slate-500 dark:text-slate-400">
                       {new Date(p.createdAt).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-white">{p.userId?.name || 'Anonymous'}</p>
-                      <p className="text-xs text-slate-400">{p.userId?.email}</p>
+                    <td>
+                      <p className="font-semibold text-slate-900 dark:text-white">{p.userId?.name || 'Anonymous'}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{p.userId?.email}</p>
                     </td>
-                    <td className="px-4 py-3 font-medium text-primary-300">
+                    <td className="font-semibold text-primary-600 dark:text-primary-400">
                       {p.primaryDisease?.replace(/_/g, ' ')}
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       <span className="badge-primary">{p.primaryConfidence?.toFixed(1)}%</span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400">
+                    <td className="text-xs text-slate-500 dark:text-slate-400">
                       {p.processingTimeMs ? `${p.processingTimeMs.toFixed(1)} ms` : 'N/A'}
                     </td>
                   </tr>
@@ -79,20 +79,20 @@ export default function AdminPredictions() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-white/5 text-xs text-slate-400">
+          <div className="flex items-center justify-between p-4 border-t border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
             <span>Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="btn-ghost py-1 px-3"
+                className="btn-secondary py-1.5 px-3.5 text-xs rounded-xl"
               >
                 Previous
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="btn-ghost py-1 px-3"
+                className="btn-secondary py-1.5 px-3.5 text-xs rounded-xl"
               >
                 Next
               </button>

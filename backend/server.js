@@ -45,7 +45,7 @@ app.use(
 );
 
 // CORS — whitelist allowed origins
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:5174,http://localhost:4173")
   .split(",")
   .map((o) => o.trim());
 
@@ -83,8 +83,17 @@ app.use(globalLimiter);
 // ---------------------------------------------------------------------------
 
 app.use(compression());
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+app.use((req, res, next) => {
+  if (req.is("application/json") || req.is("application/*+json")) {
+    return express.json({ limit: "10mb" })(req, res, next);
+  }
+  if (req.is("application/x-www-form-urlencoded")) {
+    return express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+  }
+  next();
+});
+
 app.use(mongoSanitize()); // Prevent MongoDB operator injection
 
 // HTTP request logging
