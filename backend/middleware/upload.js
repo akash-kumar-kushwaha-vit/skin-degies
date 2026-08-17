@@ -53,16 +53,20 @@ const uploadImage = (req, res, next) => {
         LIMIT_UNEXPECTED_FILE: err.message,
         LIMIT_FILE_COUNT: "Only one image can be uploaded at a time.",
       };
+      const message = messages[err.code] || err.message;
+      console.warn("Upload rejected:", { code: err.code, message, field: req.file ? req.file.fieldname : null });
       return res.status(400).json({
         success: false,
-        message: messages[err.code] || err.message,
+        message,
         code: err.code,
       });
     }
     if (err) {
+      console.warn("Upload rejected with generic error:", err.message);
       return res.status(400).json({ success: false, message: err.message });
     }
     if (!req.file) {
+      console.warn("Upload rejected: no image payload received for field 'image'.");
       return res.status(400).json({
         success: false,
         message: "No image uploaded. Please attach an image with field name 'image'.",

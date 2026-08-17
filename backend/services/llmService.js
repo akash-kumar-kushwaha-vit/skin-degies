@@ -5,10 +5,32 @@
  * Switch providers by setting LLM_PROVIDER=gemini|openai in .env.
  * No application code changes needed to switch providers.
  *
- * Active provider: Gemini 2.5 Flash (default)
+ * Active provider: Gemini 2.0 Flash (default fallback for compatibility)
  */
 
 const logger = require("../utils/logger");
+
+const resolveGeminiModel = () => {
+  const rawModel = (process.env.GEMINI_MODEL || "gemini-2.0-flash").trim();
+  const normalized = rawModel.replace(/^models\//i, "");
+
+  const retiredModels = new Set([
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-preview",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-2.5-pro-preview",
+  ]);
+
+  if (retiredModels.has(normalized)) {
+    logger.warn(
+      `GEMINI_MODEL='${rawModel}' is no longer available for new users. Falling back to 'gemini-2.0-flash'.`
+    );
+    return "gemini-2.0-flash";
+  }
+
+  return normalized || "gemini-2.0-flash";
+};
 
 // ---------------------------------------------------------------------------
 // Provider implementations
@@ -19,7 +41,7 @@ const logger = require("../utils/logger");
  */
 const GeminiProvider = {
   name: "gemini",
-  model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  model: resolveGeminiModel(),
 
   async generateReport(prompt) {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -116,11 +138,18 @@ const OpenAIProvider = {
 const PROVIDERS = { gemini: GeminiProvider, openai: OpenAIProvider };
 
 const getProvider = () => {
-  const providerName = (process.env.LLM_PROVIDER || "gemini").toLowerCase();
+  const providerName = (process.env.LLM_PROVIDER || "auto").toLowerCase();
+
+  if (providerName === "auto") {
+    if (process.env.OPENAI_API_KEY) return PROVIDERS.openai;
+    if (process.env.GEMINI_API_KEY) return PROVIDERS.gemini;
+    throw new Error("No LLM provider API key is configured. Set OPENAI_API_KEY or GEMINI_API_KEY.");
+  }
+
   const provider = PROVIDERS[providerName];
   if (!provider) {
     throw new Error(
-      `Unknown LLM_PROVIDER: '${providerName}'. Valid options: gemini, openai`
+      `Unknown LLM_PROVIDER: '${providerName}'. Valid options: gemini, openai, auto`
     );
   }
   return provider;
@@ -203,6 +232,32 @@ const parseLLMResponse = (rawText) => {
   return JSON.parse(cleaned);
 };
 
+const buildFallbackReport = (predictionData, questionnaire) => {
+  const { top3 = [], primaryDisease = "Skin condition", primaryConfidence = 0 } = predictionData || {};
+  const q = questionnaire || {};
+
+  const top3Diseases = (top3.length ? top3 : [{ disease: primaryDisease, confidence: primaryConfidence, rank: 1 }]).map((item) => ({
+    disease: item.disease || primaryDisease,
+    confidence: Number(item.confidence || primaryConfidence || 0),
+    rank: item.rank || 1,
+  }));
+
+  return {
+    predictedDisease: primaryDisease,
+    top3Diseases,
+    confidenceScore: Number(primaryConfidence || top3[0]?.confidence || 0),
+    symptomsSummary: `The selected image and questionnaire indicate ${primaryDisease}. The reported symptoms include ${q.pain || "no clear pain report"}, ${q.itching || "no clear itching report"}, and ${q.otherSymptoms || "other symptoms not fully specified"}.`,
+    possibleCauses: "This local fallback report is based on the image analysis and questionnaire. Possible causes may include irritation, infection, inflammatory skin conditions, or other dermatologic changes. A dermatologist should confirm the diagnosis.",
+    imageFindings: `The image analysis indicates a likely match with ${primaryDisease}. This local fallback is generated because the external LLM service is unavailable or rate-limited at the moment.`,
+    riskLevel: primaryConfidence >= 80 ? "Moderate" : "Low",
+    recommendedActions: "Follow up with a dermatologist, avoid scratching or irritating the area, maintain skin hygiene, and monitor the lesion for change over time.",
+    lifestyleSuggestions: "Keep the area clean and dry, avoid harsh soaps or irritants, and protect the skin from excessive sun exposure.",
+    whenToConsultDermatologist: "Seek prompt dermatology review if the lesion changes rapidly, bleeds, spreads, becomes painful, or is accompanied by fever or swelling.",
+    disclaimer: "This AI analysis is for informational purposes only and does not constitute medical advice. Please consult a licensed dermatologist or healthcare professional for proper diagnosis and treatment.",
+    fallback: true,
+  };
+};
+
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
@@ -215,41 +270,69 @@ const parseLLMResponse = (rawText) => {
  * @returns {object} - Structured report data
  */
 const generateMedicalReport = async (predictionData, questionnaire) => {
-  const provider = getProvider();
-  const startTime = Date.now();
+  const primaryProvider = getProvider();
+  const providersToTry =
+    primaryProvider.name === "gemini" && process.env.OPENAI_API_KEY
+      ? [primaryProvider, PROVIDERS.openai]
+      : [primaryProvider];
 
-  logger.info(`Generating medical report via ${provider.name} (${provider.model})`);
+  let lastError;
 
-  const prompt = buildMedicalReportPrompt(predictionData, questionnaire);
+  for (const provider of providersToTry) {
+    const startTime = Date.now();
+    logger.info(`Generating medical report via ${provider.name} (${provider.model})`);
 
-  let rawResponse;
-  try {
-    rawResponse = await provider.generateReport(prompt);
-  } catch (err) {
-    logger.error(`LLM provider error [${provider.name}]: ${err.message}`);
-    throw err;
+    const prompt = buildMedicalReportPrompt(predictionData, questionnaire);
+
+    try {
+      const rawResponse = await provider.generateReport(prompt);
+      const parsed = parseLLMResponse(rawResponse);
+
+      const generationTimeMs = Date.now() - startTime;
+      logger.info(
+        `Report generated in ${generationTimeMs}ms | Risk: ${parsed.riskLevel} | Provider: ${provider.name}`
+      );
+
+      return {
+        ...parsed,
+        rawResponse,
+        llmProvider: provider.name,
+        llmModel: provider.model,
+        generationTimeMs,
+      };
+    } catch (err) {
+      lastError = err;
+      logger.error(`LLM provider error [${provider.name}]: ${err.message}`);
+
+      const isGeminiAvailabilityIssue =
+        provider.name === "gemini" &&
+        /404|not available|not found|unsupported|invalid model|service unavailable/i.test(err.message);
+
+      if (isGeminiAvailabilityIssue && process.env.OPENAI_API_KEY) {
+        logger.warn("Gemini model unavailable; retrying report generation with OpenAI.");
+        continue;
+      }
+
+      logger.warn("Falling back to local medical report generation because the configured LLM provider is unavailable or rate-limited.");
+      const fallbackReport = buildFallbackReport(predictionData, questionnaire);
+      return {
+        ...fallbackReport,
+        rawResponse: JSON.stringify(fallbackReport),
+        llmProvider: "fallback",
+        llmModel: "local-fallback",
+        generationTimeMs: Date.now() - startTime,
+      };
+    }
   }
 
-  let parsed;
-  try {
-    parsed = parseLLMResponse(rawResponse);
-  } catch (err) {
-    logger.error(`Failed to parse LLM JSON response: ${err.message}`);
-    logger.debug(`Raw LLM response: ${rawResponse.substring(0, 500)}...`);
-    throw new Error("LLM returned an invalid JSON response. Please try again.");
-  }
-
-  const generationTimeMs = Date.now() - startTime;
-  logger.info(
-    `Report generated in ${generationTimeMs}ms | Risk: ${parsed.riskLevel} | Provider: ${provider.name}`
-  );
-
+  logger.warn("Falling back to local medical report generation because no external LLM provider succeeded.");
+  const fallbackReport = buildFallbackReport(predictionData, questionnaire);
   return {
-    ...parsed,
-    rawResponse,
-    llmProvider: provider.name,
-    llmModel: provider.model,
-    generationTimeMs,
+    ...fallbackReport,
+    rawResponse: JSON.stringify(fallbackReport),
+    llmProvider: "fallback",
+    llmModel: "local-fallback",
+    generationTimeMs: 0,
   };
 };
 

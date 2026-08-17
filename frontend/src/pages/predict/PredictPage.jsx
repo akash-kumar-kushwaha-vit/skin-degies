@@ -24,6 +24,22 @@ export default function PredictPage() {
 
   const handleAnalyzeImage = async () => {
     if (!selectedFile) return toast.error('Please select an image first.')
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp']
+    const maxSize = 10 * 1024 * 1024
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      return toast.error('Unsupported file type. Please upload a JPG, PNG, WEBP, or BMP image.')
+    }
+
+    if (selectedFile.size <= 0) {
+      return toast.error('The selected file is empty. Please choose a valid image file.')
+    }
+
+    if (selectedFile.size > maxSize) {
+      return toast.error('Image is too large. Please upload an image under 10 MB.')
+    }
+
     setLoading(true)
     const formData = new FormData()
     formData.append('image', selectedFile)
@@ -100,10 +116,10 @@ export default function PredictPage() {
               <div key={num} className="flex-1 flex flex-col items-center gap-2 relative">
                 {/* Circle */}
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 z-10 transition-all duration-400 ${isDone
-                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_0_4px_rgba(16,185,129,0.15)]'
-                    : isActive
-                      ? 'bg-primary-600 border-primary-600 text-white shadow-[0_0_0_4px_rgba(37,99,235,0.2)]'
-                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500'
+                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_0_0_4px_rgba(16,185,129,0.15)]'
+                  : isActive
+                    ? 'bg-primary-600 border-primary-600 text-white shadow-[0_0_0_4px_rgba(37,99,235,0.2)]'
+                    : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500'
                   }`}>
                   {isDone
                     ? <RiCheckLine className="w-4 h-4" />

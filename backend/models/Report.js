@@ -48,10 +48,10 @@ const reportSchema = new mongoose.Schema(
     // LLM provider metadata
     llmProvider: {
       type: String,
-      enum: ["gemini", "openai"],
+      enum: ["gemini", "openai", "fallback"],
       default: "gemini",
     },
-    llmModel: { type: String, default: "gemini-2.5-flash" },
+    llmModel: { type: String, default: "gemini-2.0-flash" },
     generationTimeMs: { type: Number },
     // Report status
     status: {

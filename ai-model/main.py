@@ -97,13 +97,13 @@ async def lifespan(app: FastAPI):
 
     try:
         model_service.load()
-        logger.info("✓ Model loaded | Device: %s", model_service.device)
+        logger.info("Model loaded | Device: %s", model_service.device)
     except FileNotFoundError as exc:
-        logger.critical("✗ STARTUP FAILED — checkpoint missing: %s", exc)
+        logger.critical("STARTUP FAILED — checkpoint missing: %s", exc)
         # Allow the server to start so the /health endpoint returns 503
         # (better than crashing — Railway/Docker will surface the error)
     except Exception as exc:
-        logger.exception("✗ STARTUP FAILED — unexpected error: %s", exc)
+        logger.exception("STARTUP FAILED — unexpected error: %s", exc)
 
     yield  # ── Application runs ──────────────────────────────────────────
 

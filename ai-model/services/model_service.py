@@ -94,10 +94,14 @@ class ModelService:
         else:
             state_dict = checkpoint  # Full model saved with torch.save(model, ...)
 
-        # Handle DataParallel / DistributedDataParallel prefix
+        # Handle DataParallel / DistributedDataParallel prefix and the common
+        # case where a checkpoint was saved without the model wrapper prefix.
         cleaned = {}
         for k, v in (state_dict.items() if isinstance(state_dict, dict) else state_dict.state_dict().items()):
-            cleaned[k.replace("module.", "")] = v
+            normalized = k.replace("module.", "")
+            normalized = normalized.replace("backbone.", "", 1)
+            normalized = f"backbone.{normalized}"
+            cleaned[normalized] = v
 
         self._model.load_state_dict(cleaned, strict=True)
         self._model.to(self._device)

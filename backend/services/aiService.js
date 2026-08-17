@@ -6,10 +6,10 @@
  */
 
 const FormData = require("form-data");
-const fetch = require("node-fetch");
 const logger = require("../utils/logger");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
+const fetchFn = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 /**
  * Forward an image buffer to the FastAPI predict endpoint.
@@ -30,7 +30,7 @@ const callAIService = async (imageBuffer, originalName, mimeType) => {
   logger.info(`Calling AI service: POST ${url} | file=${originalName} size=${imageBuffer.length}`);
 
   const startTime = Date.now();
-  const response = await fetch(url, {
+  const response = await fetchFn(url, {
     method: "POST",
     body: form,
     headers: form.getHeaders(),
