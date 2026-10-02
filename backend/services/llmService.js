@@ -1,11 +1,11 @@
 /**
  * LLM Service — Provider-Agnostic Medical Report Generator
  * ==========================================================
- * Supports Gemini and OpenAI through a unified interface.
- * Switch providers by setting LLM_PROVIDER=gemini|openai in .env.
+ * Supports Groq, Gemini, and OpenAI through a unified interface.
+ * Switch providers by setting LLM_PROVIDER=groq|gemini|openai in .env.
  * No application code changes needed to switch providers.
  *
- * Active provider: Gemini 2.0 Flash (default fallback for compatibility)
+ * Active provider: Groq (preferred when configured)
  */
 
 const logger = require("../utils/logger");
@@ -131,25 +131,75 @@ const OpenAIProvider = {
   },
 };
 
+/**
+ * Groq provider using the OpenAI-compatible chat completions API.
+ */
+const GroqProvider = {
+  name: "groq",
+  model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+
+  async generateReport(prompt) {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY is not configured.");
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a professional medical AI assistant specializing in dermatology. " +
+              "Provide accurate, helpful, and compassionate medical information. " +
+              "Always include appropriate disclaimers.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 2048,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        `Groq API error: ${response.status} — ${errorData?.error?.message || response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content;
+    if (!text) throw new Error("Groq returned an empty response.");
+    return text;
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Provider factory
 // ---------------------------------------------------------------------------
 
-const PROVIDERS = { gemini: GeminiProvider, openai: OpenAIProvider };
+const PROVIDERS = { gemini: GeminiProvider, openai: OpenAIProvider, groq: GroqProvider };
 
 const getProvider = () => {
   const providerName = (process.env.LLM_PROVIDER || "auto").toLowerCase();
 
   if (providerName === "auto") {
+    if (process.env.GROQ_API_KEY) return PROVIDERS.groq;
     if (process.env.OPENAI_API_KEY) return PROVIDERS.openai;
     if (process.env.GEMINI_API_KEY) return PROVIDERS.gemini;
-    throw new Error("No LLM provider API key is configured. Set OPENAI_API_KEY or GEMINI_API_KEY.");
+    throw new Error("No LLM provider API key is configured. Set GROQ_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.");
   }
 
   const provider = PROVIDERS[providerName];
   if (!provider) {
     throw new Error(
-      `Unknown LLM_PROVIDER: '${providerName}'. Valid options: gemini, openai, auto`
+      `Unknown LLM_PROVIDER: '${providerName}'. Valid options: groq, gemini, openai, auto`
     );
   }
   return provider;
@@ -224,11 +274,27 @@ Return ONLY the JSON object. No markdown code blocks. No extra text. Pure JSON.
 // ---------------------------------------------------------------------------
 
 const parseLLMResponse = (rawText) => {
-  // Strip potential markdown code blocks
+  if (typeof rawText !== "string") {
+    throw new Error("LLM response is not a string.");
+  }
+
   let cleaned = rawText.trim();
+
+  // Groq / reasoning models may prefix JSON with <think>...</think>
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
+  // Strip potential markdown code blocks
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }
+
+  // Extract the first valid JSON object if the model wrapped it in extra commentary
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+  }
+
   return JSON.parse(cleaned);
 };
 
@@ -242,17 +308,31 @@ const buildFallbackReport = (predictionData, questionnaire) => {
     rank: item.rank || 1,
   }));
 
+  const symptomSummary = [
+    q.pain && q.pain !== "No",
+    q.itching && q.itching !== "No",
+    q.otherSymptoms && q.otherSymptoms !== "None",
+  ].filter(Boolean).length
+    ? [q.pain && q.pain !== "No" ? `pain reported as ${q.pain}` : null, q.itching && q.itching !== "No" ? `itching reported as ${q.itching}` : null, q.otherSymptoms && q.otherSymptoms !== "None" ? `other symptoms noted: ${q.otherSymptoms}` : null].filter(Boolean).join(", ")
+    : "symptoms are not clearly described in the questionnaire";
+
+  const riskLevel = (() => {
+    if (q.fever === "Yes" || q.bleeding === "Yes" || q.swelling === "Yes") return "Moderate";
+    if (Number(primaryConfidence || top3[0]?.confidence || 0) >= 80) return "Moderate";
+    return "Low";
+  })();
+
   return {
     predictedDisease: primaryDisease,
     top3Diseases,
     confidenceScore: Number(primaryConfidence || top3[0]?.confidence || 0),
-    symptomsSummary: `The selected image and questionnaire indicate ${primaryDisease}. The reported symptoms include ${q.pain || "no clear pain report"}, ${q.itching || "no clear itching report"}, and ${q.otherSymptoms || "other symptoms not fully specified"}.`,
-    possibleCauses: "This local fallback report is based on the image analysis and questionnaire. Possible causes may include irritation, infection, inflammatory skin conditions, or other dermatologic changes. A dermatologist should confirm the diagnosis.",
-    imageFindings: `The image analysis indicates a likely match with ${primaryDisease}. This local fallback is generated because the external LLM service is unavailable or rate-limited at the moment.`,
-    riskLevel: primaryConfidence >= 80 ? "Moderate" : "Low",
-    recommendedActions: "Follow up with a dermatologist, avoid scratching or irritating the area, maintain skin hygiene, and monitor the lesion for change over time.",
-    lifestyleSuggestions: "Keep the area clean and dry, avoid harsh soaps or irritants, and protect the skin from excessive sun exposure.",
-    whenToConsultDermatologist: "Seek prompt dermatology review if the lesion changes rapidly, bleeds, spreads, becomes painful, or is accompanied by fever or swelling.",
+    symptomsSummary: `The image and questionnaire suggest a likely diagnosis of ${primaryDisease}. Based on the available information, ${symptomSummary}, and the lesion pattern appears consistent with an inflammatory or reactive skin condition. This should be reviewed alongside the patient history and physical examination for confirmation.`,
+    possibleCauses: "This local clinical summary is based on the lesion appearance and patient answers. Common possibilities include irritation, inflammation, infection, chronic skin stress, or another dermatologic condition. The exact cause may vary depending on the lesion location, duration, and skin history.",
+    imageFindings: `The visual pattern is most consistent with ${primaryDisease}. The local AI model indicates moderate confidence in this assessment, and the result should be interpreted as a supportive screening tool rather than a definitive diagnosis.`,
+    riskLevel,
+    recommendedActions: "Arrange a dermatology review to confirm the diagnosis, avoid scratching or irritating the area, keep the lesion clean and dry, and monitor any changes in size, color, or texture over time.",
+    lifestyleSuggestions: "Use gentle skin care products, avoid harsh soaps or scented lotions, protect the lesion from friction and excessive sun exposure, and maintain good hygiene around the affected area.",
+    whenToConsultDermatologist: "Seek prompt medical evaluation if the lesion spreads rapidly, bleeds, becomes painful, develops pus, or is accompanied by fever, swelling, or significant new symptoms.",
     disclaimer: "This AI analysis is for informational purposes only and does not constitute medical advice. Please consult a licensed dermatologist or healthcare professional for proper diagnosis and treatment.",
     fallback: true,
   };

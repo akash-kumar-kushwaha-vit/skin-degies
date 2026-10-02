@@ -1,35 +1,26 @@
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { RiArrowLeftLine, RiCompass3Line } from 'react-icons/ri'
 
 export default function NotFoundPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#070d19] px-4 relative overflow-hidden">
-      {/* Background radial glow */}
-      <div className="absolute w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md card-base p-8 text-center shadow-premium space-y-6 rounded-3xl"
-      >
-        <div className="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-950/80 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800/60 flex items-center justify-center mx-auto shadow-subtle">
-          <RiCompass3Line className="w-8 h-8" />
+    <div className="min-h-[80vh] flex items-center justify-center px-4">
+      <div className="w-full max-w-md card-base p-8 text-center space-y-5 rounded-2xl border border-slate-200 dark:border-white/10">
+        <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+          <RiCompass3Line className="w-6 h-6" />
         </div>
 
         <div>
-          <h1 className="font-display text-6xl font-extrabold gradient-brand mb-2">404</h1>
-          <h2 className="font-display text-xl font-bold text-slate-900 dark:text-white mb-2">Page Not Found</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-            The page or clinical record you are looking for does not exist or has been relocated.
+          <span className="font-mono text-3xl font-bold text-blue-600 dark:text-blue-400 block mb-1">404</span>
+          <h1 className="font-display text-lg font-bold text-slate-900 dark:text-white">Page Not Found</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
+            The requested page or record does not exist or has been relocated.
           </p>
         </div>
 
-        <Link to="/" className="btn-primary w-full justify-center py-3 text-sm rounded-xl">
-          <RiArrowLeftLine className="w-4 h-4" /> Return to Home
+        <Link to="/" className="btn-primary w-full justify-center py-2.5 text-xs rounded-xl inline-flex items-center gap-1.5">
+          <RiArrowLeftLine className="w-3.5 h-3.5" /> Return to Home
         </Link>
-      </motion.div>
+      </div>
     </div>
   )
 }

@@ -66,6 +66,55 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Doctor professional profile
+    degree: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Degree cannot exceed 100 characters'],
+      default: '',
+    },
+    specialization: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Specialization cannot exceed 100 characters'],
+      default: '',
+    },
+    hospital: {
+      type: String,
+      trim: true,
+      maxlength: [150, 'Hospital name cannot exceed 150 characters'],
+      default: '',
+    },
+    clinicAddress: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Clinic address cannot exceed 300 characters'],
+      default: '',
+    },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: [30, 'Phone cannot exceed 30 characters'],
+      default: '',
+    },
+    medicalLicense: {
+      type: String,
+      trim: true,
+      maxlength: [60, 'Medical license cannot exceed 60 characters'],
+      default: '',
+    },
+    yearsOfExperience: {
+      type: Number,
+      min: 0,
+      max: 70,
+      default: null,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Bio cannot exceed 500 characters'],
+      default: '',
+    },
     isActive: {
       type: Boolean,
       default: true,

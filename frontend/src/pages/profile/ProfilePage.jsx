@@ -1,36 +1,110 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { RiUserLine, RiMailLine, RiLockPasswordLine, RiSaveLine, RiShieldKeyholeLine } from 'react-icons/ri'
+import { useState, useRef } from 'react'
+import {
+  RiUserLine, RiMailLine, RiLockPasswordLine, RiSaveLine,
+  RiCameraLine, RiHospitalLine, RiMapPinLine, RiPhoneLine, RiMedalLine,
+  RiShieldCheckLine, RiCheckLine
+} from 'react-icons/ri'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 15 },
-  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.4, ease: [0.22, 1, 0.36, 1] } }),
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
+function Field({ label, icon: Icon, children }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+        {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
+        {label}
+      </label>
+      {children}
+    </div>
+  )
 }
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth()
+  const fileInputRef = useRef(null)
 
+  const [activeTab, setActiveTab] = useState('profile') // 'profile' | 'security'
+
+  // Basic & Doctor info
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
-  const [profileLoading, setProfileLoading] = useState(false)
+  const [degree, setDegree] = useState(user?.degree || '')
+  const [specialization, setSpecialization] = useState(user?.specialization || '')
+  const [hospital, setHospital] = useState(user?.hospital || '')
+  const [clinicAddress, setClinicAddress] = useState(user?.clinicAddress || '')
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [medicalLicense, setMedicalLicense] = useState(user?.medicalLicense || '')
+  const [yearsOfExperience, setYearsOfExperience] = useState(user?.yearsOfExperience || '')
+  const [bio, setBio] = useState(user?.bio || '')
 
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState(null)
+
+  // Password
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
 
-  const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+  const initials = user?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '?'
 
+  const getAvatarSrc = () => {
+    if (avatarPreview) return avatarPreview
+    if (user?.avatar) return `${API_URL}${user.avatar}`
+    return null
+  }
+
+  // ── Avatar Upload ────────────────────────────────────────────────────────
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      return toast.error('Profile photo must be smaller than 5 MB.')
+    }
+
+    const reader = new FileReader()
+    reader.onload = (ev) => setAvatarPreview(ev.target.result)
+    reader.readAsDataURL(file)
+
+    setAvatarLoading(true)
+    try {
+      const form = new FormData()
+      form.append('avatar', file)
+      const { data } = await api.post('/users/avatar', form)
+      updateUser(data.data.user)
+      toast.success('Profile photo updated!')
+    } catch (err) {
+      setAvatarPreview(null)
+      toast.error(err.response?.data?.message || 'Failed to upload photo.')
+    } finally {
+      setAvatarLoading(false)
+    }
+  }
+
+  // ── Update Profile ────────────────────────────────────────────────────────
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
     setProfileLoading(true)
     try {
-      const { data } = await api.put('/users/profile', { name, email })
+      const { data } = await api.put('/users/profile', {
+        name,
+        email,
+        degree,
+        specialization,
+        hospital,
+        clinicAddress,
+        phone,
+        medicalLicense,
+        yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
+        bio,
+      })
       updateUser(data.data.user)
-      toast.success('Profile updated successfully.')
+      toast.success('Profile details saved.')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update profile.')
     } finally {
@@ -38,8 +112,12 @@ export default function ProfilePage() {
     }
   }
 
+  // ── Change Password ────────────────────────────────────────────────────────
   const handleChangePassword = async (e) => {
     e.preventDefault()
+    if (newPassword.length < 6) {
+      return toast.error('New password must be at least 6 characters.')
+    }
     if (newPassword !== confirmNewPassword) {
       return toast.error('New passwords do not match.')
     }
@@ -51,191 +129,302 @@ export default function ProfilePage() {
       setNewPassword('')
       setConfirmNewPassword('')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to change password.')
+      toast.error(err.response?.data?.message || 'Failed to update password.')
     } finally {
       setPasswordLoading(false)
     }
   }
 
+  const avatarSrc = getAvatarSrc()
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      {/* ── Page Header & Profile Card ── */}
-      <motion.div
-        variants={fadeUp} initial="hidden" animate="visible"
-        className="card-base p-6 md:p-8 flex flex-col sm:flex-row items-center gap-6 rounded-3xl shadow-premium"
-      >
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-600 to-teal-600 text-white font-display font-extrabold text-2xl flex items-center justify-center shadow-button flex-shrink-0">
-          {initials}
-        </div>
-        <div className="text-center sm:text-left space-y-1">
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-            <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">{user?.name}</h1>
-            <span className="badge-primary text-[10px] uppercase font-bold tracking-wider">
-              {user?.role === 'admin' ? 'Administrator' : 'Clinical User'}
-            </span>
-          </div>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">{user?.email}</p>
-          <p className="text-slate-400 dark:text-slate-500 text-xs pt-1">
-            Member since {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Account &amp; Clinical Settings
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Manage your credentials, clinic information, and security preferences
           </p>
         </div>
-      </motion.div>
+      </div>
 
-      {/* ── Forms Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Profile Info Form */}
-        <motion.div
-          variants={fadeUp} initial="hidden" animate="visible" custom={1}
-          className="card-base p-6 sm:p-8 space-y-6 flex flex-col justify-between rounded-3xl"
+      {/* ── Tabs ── */}
+      <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-white/[0.06] pb-1">
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            activeTab === 'profile'
+              ? 'bg-blue-50 dark:bg-blue-600/15 text-blue-700 dark:text-blue-400'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
         >
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950/80 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800/60 flex items-center justify-center font-bold shadow-subtle">
-                <RiUserLine className="w-5 h-5" />
+          Clinician Profile
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            activeTab === 'security'
+              ? 'bg-blue-50 dark:bg-blue-600/15 text-blue-700 dark:text-blue-400'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          Security &amp; Password
+        </button>
+      </div>
+
+      {/* ── Tab 1: Profile Form ── */}
+      {activeTab === 'profile' && (
+        <form onSubmit={handleUpdateProfile} className="space-y-6">
+          {/* Avatar card */}
+          <div className="card-base p-5 flex flex-col sm:flex-row items-center gap-5">
+            <div className="relative group">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-900 text-white flex items-center justify-center font-display font-bold text-2xl border border-slate-200 dark:border-white/10">
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt={user?.name} className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
               </div>
-              <div>
-                <h2 className="font-display font-semibold text-lg text-slate-900 dark:text-white">Personal Information</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Update your name and contact details</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-slate-950/50 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                title="Change photo"
+              >
+                <RiCameraLine className="w-5 h-5" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
             </div>
 
-            <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <RiUserLine className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    id="profile-name"
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="input pl-10"
-                  />
-                </div>
+            <div className="text-center sm:text-left space-y-1">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <h3 className="font-display font-semibold text-base text-slate-900 dark:text-white">
+                  {user?.name || 'Physician'}
+                </h3>
+                <span className="badge-primary text-[10px]">
+                  {user?.role === 'admin' ? 'Administrator' : 'Clinician'}
+                </span>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <RiMailLine className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    id="profile-email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input pl-10"
-                  />
-                </div>
-              </div>
-            </form>
+              <p className="text-xs text-slate-400">
+                JPG, PNG or WebP under 5 MB. Appears on printed clinical reports.
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarLoading}
+                className="btn-secondary text-xs py-1.5 px-3 rounded-lg mt-2 inline-flex items-center gap-1.5"
+              >
+                <RiCameraLine className="w-3.5 h-3.5" />
+                <span>{avatarLoading ? 'Uploading...' : 'Upload Photo'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="pt-4">
-            <button
-              form="profile-form"
-              type="submit"
-              disabled={profileLoading}
-              className="btn-primary w-full py-3 text-sm rounded-xl"
-            >
-              <RiSaveLine className="w-4 h-4" />
-              {profileLoading ? 'Saving...' : 'Save Profile Changes'}
-            </button>
-          </div>
-        </motion.div>
+          {/* Form details */}
+          <div className="card-base p-5 sm:p-7 space-y-5">
+            <h3 className="font-display font-semibold text-sm text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-white/[0.06]">
+              Personal &amp; Practice Information
+            </h3>
 
-        {/* Change Password Form */}
-        <motion.div
-          variants={fadeUp} initial="hidden" animate="visible" custom={2}
-          className="card-base p-6 sm:p-8 space-y-6 flex flex-col justify-between rounded-3xl"
-        >
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center font-bold shadow-subtle">
-                <RiShieldKeyholeLine className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-display font-semibold text-lg text-slate-900 dark:text-white">Security & Password</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Update your access password</p>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Full Name" icon={RiUserLine}>
+                <input
+                  id="profile-name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Email Address" icon={RiMailLine}>
+                <input
+                  id="profile-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Degree / Credentials" icon={RiMedalLine}>
+                <input
+                  id="profile-degree"
+                  type="text"
+                  placeholder="e.g. MD, MBBS, FAAD"
+                  value={degree}
+                  onChange={(e) => setDegree(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Specialization" icon={RiMedalLine}>
+                <input
+                  id="profile-specialization"
+                  type="text"
+                  placeholder="e.g. Dermatology &amp; Cutaneous Surgery"
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Hospital / Clinic Affiliation" icon={RiHospitalLine}>
+                <input
+                  id="profile-hospital"
+                  type="text"
+                  placeholder="e.g. City Dermatology Center"
+                  value={hospital}
+                  onChange={(e) => setHospital(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Medical License Number" icon={RiShieldCheckLine}>
+                <input
+                  id="profile-license"
+                  type="text"
+                  placeholder="e.g. MED-894103"
+                  value={medicalLicense}
+                  onChange={(e) => setMedicalLicense(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Phone Contact" icon={RiPhoneLine}>
+                <input
+                  id="profile-phone"
+                  type="tel"
+                  placeholder="e.g. +1 (555) 019-2834"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="Years of Experience">
+                <input
+                  id="profile-experience"
+                  type="number"
+                  placeholder="e.g. 12"
+                  value={yearsOfExperience}
+                  onChange={(e) => setYearsOfExperience(e.target.value)}
+                  className="input"
+                  min={0}
+                  max={60}
+                />
+              </Field>
             </div>
 
-            <form id="password-form" onSubmit={handleChangePassword} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <RiLockPasswordLine className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    id="profile-current-password"
-                    type="password"
-                    required
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="input pl-10"
-                  />
-                </div>
-              </div>
+            <Field label="Clinic Physical Address" icon={RiMapPinLine}>
+              <input
+                id="profile-address"
+                type="text"
+                placeholder="e.g. 450 Health Sciences Blvd, Suite 300, Boston, MA"
+                value={clinicAddress}
+                onChange={(e) => setClinicAddress(e.target.value)}
+                className="input"
+              />
+            </Field>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  New Password
-                </label>
-                <div className="relative">
-                  <RiLockPasswordLine className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    id="profile-new-password"
-                    type="password"
-                    required
-                    minLength={8}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min 8 characters"
-                    className="input pl-10"
-                  />
-                </div>
-              </div>
+            <Field label="Clinician Bio / Notes">
+              <textarea
+                id="profile-bio"
+                rows={3}
+                placeholder="Brief professional summary..."
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="input resize-none"
+              />
+            </Field>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <RiLockPasswordLine className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    id="profile-confirm-password"
-                    type="password"
-                    required
-                    minLength={8}
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    placeholder="Repeat new password"
-                    className="input pl-10"
-                  />
-                </div>
-              </div>
-            </form>
+            <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex justify-end">
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="btn-primary text-xs py-2 px-5 rounded-lg"
+              >
+                <RiSaveLine className="w-3.5 h-3.5" />
+                <span>{profileLoading ? 'Saving...' : 'Save Profile Changes'}</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {/* ── Tab 2: Security Form ── */}
+      {activeTab === 'security' && (
+        <form onSubmit={handleChangePassword} className="card-base p-5 sm:p-7 space-y-5">
+          <div>
+            <h3 className="font-display font-semibold text-sm text-slate-900 dark:text-white">
+              Change Account Password
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Ensure your account uses a secure password of at least 6 characters.
+            </p>
           </div>
 
-          <div className="pt-4">
+          <div className="space-y-4 max-w-md">
+            <Field label="Current Password" icon={RiLockPasswordLine}>
+              <input
+                id="current-password"
+                type="password"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="input"
+                placeholder="••••••••"
+              />
+            </Field>
+
+            <Field label="New Password" icon={RiLockPasswordLine}>
+              <input
+                id="new-password"
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="input"
+                placeholder="Minimum 6 characters"
+              />
+            </Field>
+
+            <Field label="Confirm New Password" icon={RiCheckLine}>
+              <input
+                id="confirm-password"
+                type="password"
+                required
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                className="input"
+                placeholder="Re-enter new password"
+              />
+            </Field>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex justify-start">
             <button
-              form="password-form"
               type="submit"
               disabled={passwordLoading}
-              className="btn-secondary w-full py-3 text-sm rounded-xl"
+              className="btn-primary text-xs py-2 px-5 rounded-lg"
             >
-              {passwordLoading ? 'Updating Password...' : 'Update Password'}
+              <RiSaveLine className="w-3.5 h-3.5" />
+              <span>{passwordLoading ? 'Updating...' : 'Update Password'}</span>
             </button>
           </div>
-        </motion.div>
-      </div>
+        </form>
+      )}
     </div>
   )
 }

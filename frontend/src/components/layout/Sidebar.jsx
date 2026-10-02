@@ -1,159 +1,150 @@
 import { NavLink } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
   RiDashboardLine, RiMicroscopeLine, RiFileTextLine,
   RiUserLine, RiAdminLine, RiLogoutBoxLine, RiDnaLine, RiShieldLine
 } from 'react-icons/ri'
+import { FiX } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext'
 import clsx from 'clsx'
 
 const userLinks = [
-  { to: '/dashboard', icon: RiDashboardLine,   label: 'Dashboard' },
-  { to: '/predict',   icon: RiMicroscopeLine,  label: 'AI Lesion Scan' },
-  { to: '/profile',   icon: RiUserLine,         label: 'Account Profile' },
+  { to: '/dashboard', icon: RiDashboardLine, label: 'Dashboard' },
+  { to: '/predict', icon: RiMicroscopeLine, label: 'AI Lesion Scan' },
+  { to: '/profile', icon: RiUserLine, label: 'Account Profile' },
 ]
 
 const adminLinks = [
-  { to: '/admin',              icon: RiAdminLine,    label: 'Admin Overview' },
-  { to: '/admin/users',        icon: RiShieldLine,   label: 'Manage Users' },
-  { to: '/admin/predictions',  icon: RiFileTextLine, label: 'Prediction Logs' },
+  { to: '/admin', icon: RiAdminLine, label: 'Admin Overview' },
+  { to: '/admin/users', icon: RiShieldLine, label: 'Manage Users' },
+  { to: '/admin/predictions', icon: RiFileTextLine, label: 'Prediction Logs' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onClose = () => { } }) {
   const { user, logout } = useAuth()
-  const isAdmin  = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin'
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
 
   return (
-    <motion.aside
-      initial={{ x: -16, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="w-64 min-h-screen flex flex-col flex-shrink-0 relative
-                 bg-white dark:bg-[#0a1122]/95
-                 border-r border-slate-200/70 dark:border-white/[0.05]
-                 shadow-[12px_0_30px_-24px_rgba(15,23,42,0.12)]
-                 dark:shadow-[12px_0_30px_-24px_rgba(2,6,23,0.9)]"
+    <aside
+      className={clsx(
+        'w-64 min-h-screen flex flex-col flex-shrink-0 z-50 transition-transform duration-200 ease-in-out',
+        'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full',
+        'bg-white dark:bg-[#0c111d] border-r border-slate-200 dark:border-white/[0.07]'
+      )}
     >
-      {/* ── Brand ── */}
-      <div className="px-5 py-5 border-b border-slate-200/70 dark:border-white/[0.05]">
-        <div className="flex items-center gap-3">
-          <div className="relative w-9 h-9 flex-shrink-0">
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-button" />
-            <div className="relative w-full h-full flex items-center justify-center">
-              <RiDnaLine className="w-5 h-5 text-white" />
-            </div>
+      {/* ── Brand Header ── */}
+      <div className="h-16 px-5 flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 dark:bg-blue-600 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+            <RiDnaLine className="w-4.5 h-4.5" />
           </div>
-          <div className="leading-none">
-            <span className="font-display font-bold text-base text-slate-900 dark:text-white tracking-tight">
-              SkinDegies <span className="gradient-brand">AI</span>
+          <div className="leading-tight">
+            <span className="font-display font-semibold text-sm text-slate-900 dark:text-white tracking-tight">
+              SkinDegies <span className="text-blue-600 dark:text-blue-400">AI</span>
             </span>
-            <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest mt-1">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
               Clinical Workspace
             </p>
           </div>
         </div>
+
+        <button
+          onClick={onClose}
+          className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+          aria-label="Close menu"
+        >
+          <FiX className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* ── User Badge ── */}
-      <div className="px-4 pt-4 pb-2">
-        <div className="flex items-center gap-3 px-3 py-3 rounded-2xl
-                       bg-slate-50 dark:bg-slate-800/40
-                       border border-slate-200/60 dark:border-white/[0.05]">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-button">
+      {/* ── User Overview Strip ── */}
+      <div className="p-3 border-b border-slate-100 dark:border-white/[0.06]">
+        <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/[0.06]">
+          <div className="w-8 h-8 rounded-lg bg-slate-900 dark:bg-blue-600 text-white font-semibold text-xs flex items-center justify-center flex-shrink-0">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">{user?.email}</p>
+            <p className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate">
+              {user?.name || 'Physician'}
+            </p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+              {user?.email}
+            </p>
           </div>
           {isAdmin && (
-            <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
+            <span className="badge-warning text-[10px] px-1.5 py-0.5 font-semibold">
               Admin
             </span>
           )}
         </div>
       </div>
 
-      {/* ── Navigation ── */}
-      <nav className="flex-1 px-4 py-3 space-y-0.5 overflow-y-auto scrollbar-hidden">
-        <p className="px-3 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          Navigation
-        </p>
-
-        {userLinks.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/dashboard'}
-            className={({ isActive }) => clsx(
-              'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200',
-              isActive
-                ? 'bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200/60 dark:border-primary-800/40'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 border border-transparent'
-            )}
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-primary-600 dark:bg-primary-400" />
-                )}
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {label}
-              </>
-            )}
-          </NavLink>
-        ))}
-
-        {isAdmin && (
-          <>
-            <p className="px-3 pb-2 pt-4 text-[10px] font-black uppercase tracking-widest text-amber-600/80 dark:text-amber-500/70">
-              Admin
-            </p>
-            {adminLinks.map(({ to, icon: Icon, label }) => (
+      {/* ── Main Navigation ── */}
+      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
+        <div>
+          <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            Navigation
+          </p>
+          <div className="space-y-0.5">
+            {userLinks.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
-                end={to === '/admin'}
+                end={to === '/dashboard'}
+                onClick={onClose}
                 className={({ isActive }) => clsx(
-                  'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200',
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 border border-transparent'
+                    ? 'bg-blue-50 dark:bg-blue-600/15 text-blue-700 dark:text-blue-400 font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-white/[0.04]'
                 )}
               >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-amber-500" />
-                    )}
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {label}
-                  </>
-                )}
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span>{label}</span>
               </NavLink>
             ))}
-          </>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <div>
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600/80 dark:text-amber-500/80">
+              Administration
+            </p>
+            <div className="space-y-0.5">
+              {adminLinks.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/admin'}
+                  onClick={onClose}
+                  className={({ isActive }) => clsx(
+                    'flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
+                    isActive
+                      ? 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-white/[0.04]'
+                  )}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
         )}
       </nav>
 
-      {/* ── Logout ── */}
-      <div className="px-4 pb-5 border-t border-slate-200/70 dark:border-white/[0.05] pt-4 relative">
-        {/* Soft fade at bottom of nav */}
-        <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-white dark:from-[#0a1122]/95 to-transparent pointer-events-none" />
+      {/* ── Footer / Logout ── */}
+      <div className="p-3 border-t border-slate-100 dark:border-white/[0.06]">
         <button
           onClick={logout}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-xs font-semibold
-                     text-slate-500 dark:text-slate-400
-                     hover:text-rose-600 dark:hover:text-rose-400
-                     hover:bg-rose-50 dark:hover:bg-rose-950/30
-                     border border-transparent hover:border-rose-200/60 dark:hover:border-rose-900/40
-                     transition-all duration-200"
+          className="flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
         >
           <RiLogoutBoxLine className="w-4 h-4" />
-          Sign Out
+          <span>Sign Out</span>
         </button>
       </div>
-    </motion.aside>
+    </aside>
   )
 }

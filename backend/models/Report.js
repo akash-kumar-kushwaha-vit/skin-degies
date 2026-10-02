@@ -1,7 +1,7 @@
 /**
  * Report Model
  * =============
- * Stores the AI-generated medical report (from Gemini/OpenAI LLM).
+ * Stores the AI-generated medical report from the active LLM provider.
  * One report per prediction.
  */
 
@@ -48,10 +48,10 @@ const reportSchema = new mongoose.Schema(
     // LLM provider metadata
     llmProvider: {
       type: String,
-      enum: ["gemini", "openai", "fallback"],
-      default: "gemini",
+      enum: ["groq", "gemini", "openai", "fallback"],
+      default: "groq",
     },
-    llmModel: { type: String, default: "gemini-2.0-flash" },
+    llmModel: { type: String, default: "openai/gpt-oss-20b" },
     generationTimeMs: { type: Number },
     // Report status
     status: {
