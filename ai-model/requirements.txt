@@ -15,8 +15,8 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0           # BaseSettings with .env support
 
 # ── AI / ML ───────────────────────────────────────────────────────────────
-torch>=2.0.0
-torchvision>=0.15.0
+torch==2.14.1+cpu
+torchvision==0.29.1+cpu
 
 # ── Image Processing ──────────────────────────────────────────────────────
 Pillow>=10.0.0

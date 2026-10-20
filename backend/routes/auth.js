@@ -15,6 +15,8 @@ const {
   register,
   login,
   refreshToken,
+  verifyEmail,
+  resendEmailVerification,
   forgotPassword,
   resetPassword,
   getMe,
@@ -67,6 +69,22 @@ router.post(
   ],
   validate,
   register
+);
+
+router.post(
+  "/verify-email",
+  authLimiter,
+  [body("token").trim().notEmpty().withMessage("Verification token is required")],
+  validate,
+  verifyEmail
+);
+
+router.post(
+  "/resend-verification",
+  authLimiter,
+  [body("email").isEmail().normalizeEmail().withMessage("Valid email required")],
+  validate,
+  resendEmailVerification
 );
 
 /**

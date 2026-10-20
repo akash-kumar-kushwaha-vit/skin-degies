@@ -31,7 +31,9 @@ Health probe for Railway / Docker container checks.
 
 ### Authentication Endpoints (`/api/v1/auth`)
 
-- `POST /register`: Create a new user (`name`, `email`, `password`)
+- `POST /register`: Create a new user (`name`, `email`, `password`) and send a verification email (no JWT until verification)
+- `POST /verify-email`: Verify an email using `{ token }`; the token expires after 24 hours
+- `POST /resend-verification`: Request a fresh link using `{ email }`
 - `POST /login`: Log in (`email`, `password`) → Returns JWT `accessToken` & `refreshToken`
 - `POST /refresh-token`: Get a new access token using `refreshToken`
 - `POST /forgot-password`: Request password reset email

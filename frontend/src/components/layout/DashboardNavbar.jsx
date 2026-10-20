@@ -1,7 +1,7 @@
 import { useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
-import { RiSunLine, RiMoonLine, RiMicroscopeLine, RiShieldCheckLine } from 'react-icons/ri'
+import { RiSunLine, RiMoonLine, RiMicroscopeLine, RiShieldCheckLine, RiLogoutBoxLine } from 'react-icons/ri'
 import { FiMenu } from 'react-icons/fi'
 
 const PAGE_TITLES = {
@@ -14,7 +14,7 @@ const PAGE_TITLES = {
 }
 
 export default function DashboardNavbar({ onMenu = () => { } }) {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
@@ -96,6 +96,16 @@ export default function DashboardNavbar({ onMenu = () => { } }) {
             {initials}
           </Link>
         </div>
+
+        <button
+          onClick={logout}
+          className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <RiLogoutBoxLine className="w-4 h-4" />
+          <span className="hidden sm:inline">Sign out</span>
+        </button>
       </div>
     </header>
   )

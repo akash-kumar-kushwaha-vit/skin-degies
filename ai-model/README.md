@@ -29,14 +29,30 @@ python main.py
 uvicorn main:app --reload --port 8000
 ```
 
-## Docker / Railway
+## Build and run the AI-only Docker image
 
-```bash
-docker build -t skindegies-ai .
-docker run -p 8000:8000 \
-  -v $(pwd)/checkpoints:/app/checkpoints \
-  skindegies-ai
+The image contains only this AI service and its model checkpoint; it does not
+include the Node.js backend or frontend. Make sure
+`ai-model/checkpoints/best_model.pth` is present before building. Checkpoints
+are excluded from Git, so copy or download the model file into that folder on
+the machine that builds the image.
+
+This image installs CPU-only PyTorch for smaller deployments without a GPU.
+
+Run these commands from the repository root:
+
+```powershell
+docker build -f ai-model\Dockerfile -t skindegies-ai:latest ai-model
+docker run --rm -p 8000:8000 -e PORT=8000 skindegies-ai:latest
 ```
+
+The build context is `ai-model`, so application files outside that folder are
+not sent to Docker. The checkpoint is copied into the image, so it is not
+necessary to mount it at runtime. To use a platform-assigned port, set
+`PORT` in the container environment; it defaults to `8000`.
+
+Check readiness at `http://localhost:8000/api/v1/health`. The service is ready
+when the response has `"model_loaded": true`.
 
 ## Predict API
 

@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const { generateTokenPair, verifyRefreshToken } = require("../utils/jwt");
 const logger = require("../utils/logger");
+const { sendEmailVerification } = require("../services/emailService");
 
 // ---------------------------------------------------------------------------
 // Register
@@ -21,14 +22,41 @@ const register = async (req, res, next) => {
       return res.status(409).json({ success: false, message: "Email already registered." });
     }
 
-    const user = await User.create({ name, email, password });
-    const tokens = generateTokenPair(user);
+    const token = crypto.randomBytes(32).toString("hex");
+    const user = await User.create({
+      name,
+      email,
+      password,
+      isEmailVerified: false,
+      emailVerificationToken: crypto.createHash("sha256").update(token).digest("hex"),
+      emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
+    });
+
+    try {
+      await sendEmailVerification({ to: user.email, name: user.name, token });
+    } catch (emailError) {
+      if (process.env.NODE_ENV === "development") {
+        logger.warn(`Verification email unavailable for ${user.email}; returning a development-only verification token: ${emailError.message}`);
+        return res.status(201).json({
+          success: true,
+          message: "Account created. Complete local email verification to continue.",
+          data: { email: user.email, verificationToken: token },
+        });
+      }
+
+      await User.deleteOne({ _id: user._id });
+      logger.error(`Verification email could not be sent for ${user.email}: ${emailError.message}`);
+      return res.status(503).json({
+        success: false,
+        message: "We couldn't send your verification email. Please try again later.",
+      });
+    }
 
     logger.info(`New user registered: ${email}`);
     res.status(201).json({
       success: true,
-      message: "Account created successfully.",
-      data: { user: user.toPublicJSON(), ...tokens },
+      message: "Account created. Check your email for a verification link.",
+      data: { email: user.email },
     });
   } catch (err) {
     next(err);
@@ -47,6 +75,14 @@ const login = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
+      });
+    }
+
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        success: false,
+        code: "EMAIL_NOT_VERIFIED",
+        message: "Please verify your email address before signing in.",
       });
     }
 
@@ -91,12 +127,74 @@ const refreshToken = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.userId);
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || !user.isEmailVerified) {
       return res.status(401).json({ success: false, message: "User not found or inactive." });
     }
 
     const tokens = generateTokenPair(user);
     res.status(200).json({ success: true, data: tokens });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Verify email address
+// ---------------------------------------------------------------------------
+const verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: Date.now() },
+      isEmailVerified: false,
+    }).select("+emailVerificationToken +emailVerificationExpires");
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "This verification link is invalid or has expired. Request a new one to continue.",
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    logger.info(`Email verified for user: ${user.email}`);
+    res.status(200).json({ success: true, message: "Email verified. You can now sign in." });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Resend email verification
+// ---------------------------------------------------------------------------
+const resendEmailVerification = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || user.isEmailVerified) {
+      return res.status(200).json({
+        success: true,
+        message: "If that email needs verification, a new link will be sent.",
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    await sendEmailVerification({ to: user.email, name: user.name, token });
+    user.emailVerificationToken = crypto.createHash("sha256").update(token).digest("hex");
+    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      success: true,
+      message: "If that email needs verification, a new link will be sent.",
+    });
   } catch (err) {
     next(err);
   }
@@ -190,4 +288,13 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, refreshToken, forgotPassword, resetPassword, getMe };
+module.exports = {
+  register,
+  login,
+  refreshToken,
+  verifyEmail,
+  resendEmailVerification,
+  forgotPassword,
+  resetPassword,
+  getMe,
+};

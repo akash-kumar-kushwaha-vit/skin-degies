@@ -20,10 +20,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps into a virtual environment
+
+
+# Install Python dependencies with a longer download timeout
 COPY requirements.txt .
 RUN python -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    /opt/venv/bin/pip install \
+        --default-timeout=120 \
+        --retries=10 \
+        --no-cache-dir \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        -r requirements.txt
+
 
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────
@@ -58,16 +66,12 @@ RUN useradd -m -u 1001 appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
-# Railway injects PORT env var dynamically
+# Deployment platforms may override PORT; local Docker defaults to 8000.
 EXPOSE 8000
 
-# Health check — Railway uses this to detect readiness
+# Health check — only succeeds once the model has loaded.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+    CMD sh -c 'curl -f "http://localhost:${PORT:-8000}/api/v1/health" || exit 1'
 
 # Production entrypoint — single worker (model loaded once)
-CMD ["uvicorn", "main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1", \
-     "--log-level", "info"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info"]

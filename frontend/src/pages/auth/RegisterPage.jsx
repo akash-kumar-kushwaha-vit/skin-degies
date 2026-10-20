@@ -75,9 +75,16 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await register(name, email, password)
-      toast.success('Account created successfully!')
-      navigate('/dashboard')
+      const result = await register(name, email, password)
+      if (result.verificationToken) {
+        toast.success('Email delivery is not configured locally. Completing development verification.')
+        navigate(`/verify-email?token=${encodeURIComponent(result.verificationToken)}`, {
+          state: { email: result.email || email, developmentVerification: true },
+        })
+      } else {
+        toast.success('Verification link sent to your email.')
+        navigate('/verify-email', { state: { email: result.email || email } })
+      }
     } catch (err) {
       const msg =
         err.response?.data?.errors?.[0]?.message ||
@@ -93,8 +100,14 @@ export default function RegisterPage() {
     <div className="min-h-[82vh] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0c111d] shadow-sm overflow-hidden flex flex-col lg:flex-row">
         {/* ── Left Brand Side ── */}
-        <div className="hidden lg:flex flex-col justify-between p-10 bg-slate-900 text-white w-[42%] flex-shrink-0">
-          <div>
+        <div className="hidden lg:flex relative isolate flex-col justify-between p-10 bg-slate-900 text-white w-[42%] flex-shrink-0 overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=1000&q=85"
+            alt=""
+            className="absolute inset-0 -z-20 h-full w-full object-cover opacity-35"
+          />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-blue-950/70" />
+          <div className="relative">
             <div className="flex items-center gap-2.5 mb-10">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
                 <RiDnaLine className="w-4.5 h-4.5" />
@@ -102,7 +115,7 @@ export default function RegisterPage() {
               <span className="font-display font-bold text-base tracking-tight">SkinDegies AI</span>
             </div>
 
-            <h2 className="font-display font-bold text-2xl leading-tight mb-3">
+            <h2 className="font-display font-bold text-2xl leading-tight mb-3 text-white">
               Start Free Clinical Analysis
             </h2>
             <p className="text-slate-400 text-xs leading-relaxed mb-8">
@@ -121,9 +134,9 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-white/10 flex items-center gap-2 text-xs text-slate-400">
+          <div className="relative pt-6 border-t border-white/10 flex items-center gap-2 text-xs text-slate-300">
             <RiShieldCheckLine className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <span>Instant workspace access · No card required</span>
+            <span>Verified email required · No card required</span>
           </div>
         </div>
 
@@ -136,6 +149,10 @@ export default function RegisterPage() {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Begin analyzing dermatological cases with AI assistance
             </p>
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/80 px-3.5 py-3 text-xs leading-relaxed text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+              <RiMailLine className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>We’ll email you a secure verification link. You’ll need to verify your address before signing in.</span>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

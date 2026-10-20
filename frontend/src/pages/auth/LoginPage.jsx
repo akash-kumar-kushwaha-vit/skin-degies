@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import api from '../../services/api'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   RiMailLine, RiLockPasswordLine, RiArrowRightLine, RiDnaLine,
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resending, setResending] = useState(false)
 
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -27,14 +30,30 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setNeedsVerification(false)
     try {
       await login(email, password)
       toast.success('Welcome back!')
       navigate(from, { replace: true })
     } catch (err) {
+      if (err.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        setNeedsVerification(true)
+      }
       toast.error(err.response?.data?.message || 'Invalid email or password.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const resendVerification = async () => {
+    setResending(true)
+    try {
+      await api.post('/auth/resend-verification', { email })
+      toast.success('If this account needs verification, a new link is on its way.')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not resend the verification email.')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -42,8 +61,14 @@ export default function LoginPage() {
     <div className="min-h-[82vh] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0c111d] shadow-sm overflow-hidden flex flex-col lg:flex-row">
         {/* ── Left Brand Side ── */}
-        <div className="hidden lg:flex flex-col justify-between p-10 bg-slate-900 text-white w-[42%] flex-shrink-0">
-          <div>
+        <div className="hidden lg:flex relative isolate flex-col justify-between p-10 bg-slate-900 text-white w-[42%] flex-shrink-0 overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=1000&q=85"
+            alt=""
+            className="absolute inset-0 -z-20 h-full w-full object-cover opacity-35"
+          />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-blue-950/70" />
+          <div className="relative">
             <div className="flex items-center gap-2.5 mb-10">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
                 <RiDnaLine className="w-4.5 h-4.5" />
@@ -51,7 +76,7 @@ export default function LoginPage() {
               <span className="font-display font-bold text-base tracking-tight">SkinDegies AI</span>
             </div>
 
-            <h2 className="font-display font-bold text-2xl leading-tight mb-3">
+            <h2 className="font-display font-bold text-2xl leading-tight mb-3 text-white">
               Clinical Workspace for Dermatology
             </h2>
             <p className="text-slate-400 text-xs leading-relaxed mb-8">
@@ -70,7 +95,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-white/10 flex items-center gap-2 text-xs text-slate-400">
+          <div className="relative pt-6 border-t border-white/10 flex items-center gap-2 text-xs text-slate-300">
             <RiShieldCheckLine className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             <span>End-to-end encrypted clinical sessions</span>
           </div>
@@ -166,6 +191,22 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          {needsVerification && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-200">
+                Your email address hasn’t been verified yet. Open the link we emailed you, or request a fresh one.
+              </p>
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={resending || !email}
+                className="mt-2 text-xs font-semibold text-amber-800 underline underline-offset-2 disabled:opacity-50 dark:text-amber-200"
+              >
+                {resending ? 'Sending link…' : 'Resend verification email'}
+              </button>
+            </div>
+          )}
 
           <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
             Don't have an account?{' '}

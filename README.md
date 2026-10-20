@@ -19,6 +19,7 @@ SkinDegies AI is a production-ready, full-stack microservices application design
 - **Modern Medical Dashboard**: Patient history, report print/export, analytics, and disease distribution.
 - **Role-Based Admin Panel**: Manage users, enable/disable accounts, view system-wide prediction logs and analytics.
 - **Production Security**: Helmet headers, rate limiting, JWT authentication (access + refresh tokens), bcrypt password hashing, Multer file validation.
+- **Verified Signup**: New accounts must confirm their email address through a time-limited link before signing in.
 
 ---
 
@@ -113,9 +114,15 @@ npm run dev
 Key backend environment variables (`backend/.env`):
 - `MONGODB_URI`: MongoDB Atlas connection string
 - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`: Cryptographic keys
-- `AI_SERVICE_URL`: `http://localhost:8000` or Railway URL
+- `AI_SERVICE_URL`: FastAPI base URL. For the deployed AI service use `https://3.109.59.137`; locally use `http://localhost:8000`. The backend appends `/api/v1/predict` when forwarding image uploads.
 - `LLM_PROVIDER`: `gemini` (default) or `openai`
 - `GEMINI_API_KEY`: Google AI Studio API key
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: SMTP credentials used to send account verification emails
+- `SMTP_SECURE`: Set to `true` for implicit TLS (commonly port 465); port 587 uses STARTTLS
+- `EMAIL_FROM`: Optional sender name/address; defaults to `SMTP_USER`
+- `FRONTEND_URL`: Public frontend origin used to construct verification links
+
+New signups receive a verification email that expires after 24 hours. Configure SMTP before enabling production registration; unverified accounts cannot sign in. In `development` only, if SMTP is unavailable, the signup response contains a one-time verification token and the frontend completes verification locally. Existing accounts are treated as verified for compatibility.
 
 ---
 
